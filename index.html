@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1a1d1f">
+<title>Cámara → OneDrive</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>
+:root{
+  --bg:#15171a;
+  --panel:#202427;
+  --panel-raised:#262b2f;
+  --line:#33393e;
+  --text:#e9e9e7;
+  --muted:#8b9096;
+  --amber:#e8a33d;
+  --amber-dim:#5c4423;
+  --green:#4cae7d;
+  --green-dim:#204634;
+  --red:#e15b5b;
+  --red-dim:#4a2222;
+  --mono:"JetBrains Mono","SF Mono",ui-monospace,Consolas,monospace;
+  --sans:"Space Grotesk",-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:var(--sans);height:100%;overscroll-behavior:none;}
+body{display:flex;flex-direction:column;min-height:100vh;min-height:100dvh;}
+
+header{
+  padding:14px 16px 10px;
+  display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid var(--line);
+}
+header h1{
+  font-size:13px;letter-spacing:.14em;text-transform:uppercase;
+  margin:0;color:var(--muted);font-weight:600;
+}
+header h1 span{color:var(--text);}
+
+.led-strip{display:flex;gap:10px;}
+.led{display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
+.led i{width:7px;height:7px;border-radius:50%;background:var(--red);box-shadow:0 0 6px var(--red);display:block;transition:.25s;}
+.led.ok i{background:var(--green);box-shadow:0 0 6px var(--green);}
+.led.warn i{background:var(--amber);box-shadow:0 0 6px var(--amber);}
+
+main{flex:1;display:flex;flex-direction:column;position:relative;background:#000;}
+
+.viewfinder{position:relative;flex:1;overflow:hidden;background:#000;}
+video{width:100%;height:100%;object-fit:cover;display:block;}
+canvas{display:none;}
+
+.viewfinder .frame-mark{
+  position:absolute;inset:14px;border:1px solid rgba(233,233,231,.18);
+  border-radius:6px;pointer-events:none;
+}
+.viewfinder .frame-mark::before,.viewfinder .frame-mark::after{
+  content:"";position:absolute;width:16px;height:16px;border-color:var(--amber);border-style:solid;opacity:.85;
+}
+.viewfinder .frame-mark::before{top:-1px;left:-1px;border-width:2px 0 0 2px;}
+.viewfinder .frame-mark::after{bottom:-1px;right:-1px;border-width:0 2px 2px 0;}
+
+.preview-overlay{
+  position:absolute;inset:0;background:#000;display:none;flex-direction:column;
+}
+.preview-overlay.show{display:flex;}
+.preview-overlay img{flex:1;width:100%;object-fit:contain;background:#000;}
+
+.hint{
+  position:absolute;top:10px;left:50%;transform:translateX(-50%);
+  font-family:var(--mono);font-size:11px;color:var(--muted);
+  background:rgba(0,0,0,.5);padding:4px 10px;border-radius:20px;
+  letter-spacing:.04em;
+}
+
+.controls{
+  padding:18px 20px 22px;background:var(--panel);border-top:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;gap:26px;
+}
+.btn-secondary{
+  width:46px;height:46px;border-radius:10px;border:1px solid var(--line);
+  background:var(--panel-raised);color:var(--muted);font-size:18px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+}
+.btn-secondary:active{transform:scale(.94);}
+
+.shutter{
+  width:74px;height:74px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%, #2c3136, #1a1d20);
+  border:3px solid var(--line);
+  box-shadow:inset 0 2px 4px rgba(0,0,0,.6), 0 2px 0 rgba(255,255,255,.02);
+  position:relative;cursor:pointer;
+}
+.shutter::after{
+  content:"";position:absolute;inset:8px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%, #f0b45a, var(--amber));
+  box-shadow:0 0 14px rgba(232,163,61,.5);
+}
+.shutter:active::after{filter:brightness(.85);}
+.shutter[disabled]{opacity:.35;pointer-events:none;}
+
+.preview-actions{
+  display:none;padding:16px 20px 22px;background:var(--panel);border-top:1px solid var(--line);
+  gap:12px;
+}
+.preview-actions.show{display:flex;}
+.preview-actions button{
+  flex:1;padding:14px 10px;border-radius:10px;border:1px solid var(--line);
+  font-family:var(--sans);font-weight:600;font-size:14px;cursor:pointer;
+  background:var(--panel-raised);color:var(--text);
+}
+.preview-actions .upload{background:var(--amber);border-color:var(--amber);color:#1a1207;}
+.preview-actions .upload:active{filter:brightness(.92);}
+.preview-actions .discard:active{filter:brightness(1.15);}
+
+.status-bar{
+  padding:8px 16px;font-family:var(--mono);font-size:11px;color:var(--muted);
+  background:var(--panel);border-top:1px solid var(--line);
+  min-height:34px;display:flex;align-items:center;justify-content:space-between;gap:8px;
+}
+.status-bar .msg{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.status-bar .count{color:var(--text);}
+
+.log-panel{
+  max-height:0;overflow:hidden;background:#101214;border-top:1px solid var(--line);
+  transition:max-height .25s ease;
+}
+.log-panel.open{max-height:180px;overflow-y:auto;}
+.log-row{
+  display:flex;align-items:center;gap:8px;padding:8px 16px;
+  font-family:var(--mono);font-size:11px;border-bottom:1px solid #1c1f22;color:var(--muted);
+}
+.log-row .dot{width:6px;height:6px;border-radius:50%;flex:none;background:var(--muted);}
+.log-row.pending .dot{background:var(--amber);}
+.log-row.done .dot{background:var(--green);}
+.log-row.error .dot{background:var(--red);}
+.log-row .name{color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+.gear-panel{
+  position:absolute;inset:0;background:rgba(10,11,12,.92);backdrop-filter:blur(3px);
+  display:none;align-items:center;justify-content:center;padding:24px;z-index:20;
+}
+.gear-panel.show{display:flex;}
+.gear-card{
+  background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  padding:22px;max-width:340px;width:100%;text-align:center;
+}
+.gear-card h2{font-size:15px;margin:0 0 10px;color:var(--text);}
+.gear-card p{font-size:13px;color:var(--muted);line-height:1.5;margin:0 0 18px;}
+.gear-card button{
+  width:100%;padding:13px;border-radius:9px;border:none;background:var(--amber);
+  color:#1a1207;font-weight:700;font-size:14px;cursor:pointer;
+}
+
+@media (min-width:640px){
+  main{max-width:480px;margin:0 auto;width:100%;border-left:1px solid var(--line);border-right:1px solid var(--line);}
+  header,.controls,.status-bar,.log-panel,.preview-actions{max-width:480px;margin:0 auto;width:100%;}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span>CÁMARA</span> · ONEDRIVE</h1>
+  <div class="led-strip">
+    <div class="led" id="led-auth"><i></i>AUTH</div>
+    <div class="led" id="led-cam"><i></i>CAM</div>
+    <div class="led" id="led-sync"><i></i>SYNC</div>
+  </div>
+</header>
+
+<main>
+  <div class="viewfinder" id="viewfinder">
+    <video id="video" autoplay playsinline muted></video>
+    <div class="frame-mark"></div>
+    <div class="hint" id="hint">Iniciando cámara…</div>
+  </div>
+
+  <div class="preview-overlay" id="previewOverlay">
+    <img id="previewImg" alt="Foto capturada">
+  </div>
+
+  <canvas id="canvas"></canvas>
+
+  <div class="gear-panel" id="authPanel">
+    <div class="gear-card">
+      <h2>Conectar OneDrive</h2>
+      <p>Inicia sesión con tu cuenta de Microsoft para poder subir las fotos a tu carpeta de OneDrive.</p>
+      <button id="loginBtn">Iniciar sesión</button>
+    </div>
+  </div>
+</main>
+
+<div class="controls" id="captureControls">
+  <button class="btn-secondary" id="switchCamBtn" title="Cambiar cámara">⟳</button>
+  <button class="shutter" id="shutterBtn" title="Tomar foto" disabled></button>
+  <button class="btn-secondary" id="logToggleBtn" title="Ver registro">≡</button>
+</div>
+
+<div class="preview-actions" id="previewActions">
+  <button class="discard" id="discardBtn">Descartar</button>
+  <button class="upload" id="uploadBtn">Subir a OneDrive</button>
+</div>
+
+<div class="status-bar">
+  <span class="msg" id="statusMsg">Listo</span>
+  <span class="count" id="statusCount"></span>
+</div>
+
+<div class="log-panel" id="logPanel"></div>
+
+<script src="config.js"></script>
+<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
