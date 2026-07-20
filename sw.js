@@ -1,4 +1,4 @@
-const CACHE = "cam-onedrive-v1";
+const CACHE = "cam-onedrive-v2";
 const SHELL = [
   "./",
   "./index.html",
@@ -23,14 +23,30 @@ self.addEventListener("activate", (e) => {
   self.clients.claim();
 });
 
-// Solo cacheamos el shell estático. Las llamadas a login.microsoftonline.com
-// y graph.microsoft.com siempre van directo a la red (nunca a caché).
+// login.microsoftonline.com y graph.microsoft.com siempre van directo a la red.
+// index.html/app.js/config.js: red primero (para no quedar pegado con una
+// versión vieja cuando se actualizan), con caché como respaldo sin conexión.
+// Íconos: caché primero (no cambian).
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   if (url.origin.includes("microsoftonline.com") || url.origin.includes("graph.microsoft.com")) {
-    return; // deja pasar sin interceptar
+    return;
   }
-  e.respondWith(
-    caches.match(e.request).then((cached) => cached || fetch(e.request))
-  );
+
+  const isCoreFile = /\.(html)$|\/(app|config)\.js$|\/$/.test(url.pathname);
+
+  if (isCoreFile) {
+    e.respondWith(
+      fetch(e.request)
+        .then((res) => {
+          caches.open(CACHE).then((c) => c.put(e.request, res.clone()));
+          return res;
+        })
+        .catch(() => caches.match(e.request))
+    );
+  } else {
+    e.respondWith(
+      caches.match(e.request).then((cached) => cached || fetch(e.request))
+    );
+  }
 });

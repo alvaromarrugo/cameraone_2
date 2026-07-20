@@ -75,15 +75,33 @@ function updateLogRow(name, state) {
 }
 
 // ---------- MSAL / autenticación ----------
+function showAuthError(msg) {
+  const el = document.getElementById("authError");
+  el.textContent = msg;
+  el.style.display = "block";
+  els.authPanel.classList.add("show");
+}
+
 function initAuth() {
-  msalInstance = new msal.PublicClientApplication({
-    auth: {
-      clientId: cfg.clientId,
-      authority: cfg.authority,
-      redirectUri: cfg.redirectUri,
-    },
-    cache: { cacheLocation: "localStorage" },
-  });
+  if (!cfg.clientId || cfg.clientId.includes("PEGA_AQUI")) {
+    showAuthError("Falta configurar el Client ID en config.js (ver README paso 1-2).");
+    return;
+  }
+
+  try {
+    msalInstance = new msal.PublicClientApplication({
+      auth: {
+        clientId: cfg.clientId,
+        authority: cfg.authority,
+        redirectUri: cfg.redirectUri,
+      },
+      cache: { cacheLocation: "localStorage" },
+    });
+  } catch (e) {
+    console.error(e);
+    showAuthError("No se pudo inicializar el login: " + e.message);
+    return;
+  }
 
   msalInstance.handleRedirectPromise().then((resp) => {
     if (resp && resp.account) account = resp.account;
@@ -94,15 +112,14 @@ function initAuth() {
     onAuthChanged();
   }).catch((e) => {
     console.error(e);
-    setStatus("Error de autenticación");
+    showAuthError("Error al iniciar sesión: " + e.message);
   });
 
   els.loginBtn.addEventListener("click", () => {
-    if (cfg.clientId.includes("PEGA_AQUI")) {
-      alert("Falta configurar el Client ID en config.js. Revisa el README.");
-      return;
-    }
-    msalInstance.loginRedirect({ scopes: cfg.scopes });
+    msalInstance.loginRedirect({ scopes: cfg.scopes }).catch((e) => {
+      console.error(e);
+      showAuthError("No se pudo abrir el login: " + e.message);
+    });
   });
 }
 
