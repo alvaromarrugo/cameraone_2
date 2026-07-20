@@ -1,10 +1,11 @@
-const CACHE = "cam-onedrive-v2";
+const CACHE = "cam-onedrive-v3";
 const SHELL = [
   "./",
   "./index.html",
   "./app.js",
   "./config.js",
   "./manifest.json",
+  "./msal-browser.min.js",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
 ];
