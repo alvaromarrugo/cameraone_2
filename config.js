@@ -5,7 +5,7 @@ window.APP_CONFIG = {
   // ID de la aplicación (Application/Client ID) que obtienes al
   // registrar la app en Azure Portal > Entra ID > Registros de app.
   // Ver README.md paso 1.
-  clientId: "3642ff38-ccf8-41d4-be59-057f00365367",
+  clientId: "9d9751a6-5c53-45e7-bc1d-73e031fb3e87",
 
   // "common" sirve para cuentas personales (outlook.com, hotmail, etc.)
   // y también para cuentas de trabajo/escuela. Normalmente no hace
