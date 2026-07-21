@@ -43,6 +43,11 @@ const els = {
   folderError: document.getElementById("folderError"),
   folderCancelBtn: document.getElementById("folderCancelBtn"),
   folderConfirmBtn: document.getElementById("folderConfirmBtn"),
+  qualityLabel: document.getElementById("qualityLabel"),
+  qualityBtnOpen: document.getElementById("qualityBtnOpen"),
+  qualityPanel: document.getElementById("qualityPanel"),
+  qualityOptionList: document.getElementById("qualityOptionList"),
+  qualityCancelBtn: document.getElementById("qualityCancelBtn"),
 };
 
 let currentStream = null;
@@ -57,6 +62,13 @@ let recTimer = null;
 let recSeconds = 0;
 
 const FOLDER_KEY = "camera-onedrive-folder-v1";
+const RES_KEY = "camera-onedrive-resolution-v1";
+const RES_PRESETS = {
+  sd:  { label: "Estándar (480p)", width: 640,  height: 480  },
+  hd:  { label: "HD (720p)",       width: 1280, height: 720  },
+  fhd: { label: "Full HD (1080p)", width: 1920, height: 1080 },
+  uhd: { label: "4K (máxima disponible)", width: 3840, height: 2160 },
+};
 
 // ---------- utilidades de estado visual ----------
 function setLed(el, state) {
@@ -138,6 +150,46 @@ els.folderConfirmBtn.addEventListener("click", async () => {
     els.folderConfirmBtn.textContent = "Usar / Crear";
   }
 });
+
+// ============================================================
+// Calidad / resolución de cámara
+// ============================================================
+function getActiveResKey() {
+  const k = localStorage.getItem(RES_KEY);
+  return RES_PRESETS[k] ? k : "fhd";
+}
+function updateQualityLabel(actualW, actualH) {
+  const preset = RES_PRESETS[getActiveResKey()];
+  els.qualityLabel.textContent = actualW
+    ? `${preset.label} — real: ${actualW}×${actualH}`
+    : preset.label;
+}
+function renderQualityOptions() {
+  const activeKey = getActiveResKey();
+  els.qualityOptionList.innerHTML = "";
+  Object.entries(RES_PRESETS).forEach(([key, preset]) => {
+    const btn = document.createElement("button");
+    btn.className = "option-btn" + (key === activeKey ? " active" : "");
+    btn.innerHTML = `<span>${preset.label}</span><span class="sub">${preset.width}×${preset.height}</span>`;
+    btn.addEventListener("click", async () => {
+      localStorage.setItem(RES_KEY, key);
+      closeQualityPanel();
+      updateQualityLabel();
+      setStatus("Aplicando nueva calidad…");
+      await startCamera();
+    });
+    els.qualityOptionList.appendChild(btn);
+  });
+}
+function openQualityPanel() {
+  renderQualityOptions();
+  els.qualityPanel.classList.add("show");
+}
+function closeQualityPanel() {
+  els.qualityPanel.classList.remove("show");
+}
+els.qualityBtnOpen.addEventListener("click", openQualityPanel);
+els.qualityCancelBtn.addEventListener("click", closeQualityPanel);
 
 // ============================================================
 // Cola local en IndexedDB (fotos y videos pendientes de subir)
@@ -278,15 +330,23 @@ async function startCamera() {
   stopCamera();
   els.hint.textContent = "Iniciando cámara…";
   els.hint.style.display = "block";
+  const preset = RES_PRESETS[getActiveResKey()];
   try {
     currentStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: facingMode } },
+      video: {
+        facingMode: { ideal: facingMode },
+        width: { ideal: preset.width },
+        height: { ideal: preset.height },
+      },
       audio: true, // para poder grabar audio en los videos
     });
     els.video.srcObject = currentStream;
     els.hint.style.display = "none";
     els.shutterBtn.disabled = false;
     setLed(els.ledCam, "ok");
+    const track = currentStream.getVideoTracks()[0];
+    const settings = track ? track.getSettings() : {};
+    updateQualityLabel(settings.width, settings.height);
   } catch (e) {
     console.error(e);
     els.hint.textContent = "No se pudo acceder a la cámara/micrófono";
@@ -344,8 +404,10 @@ function startRecording() {
     return;
   }
   recordedChunks = [];
+  const preset = RES_PRESETS[getActiveResKey()];
+  const videoBitsPerSecond = Math.round(preset.width * preset.height * 0.12); // ~escala con la resolución
   try {
-    mediaRecorder = new MediaRecorder(currentStream, { mimeType });
+    mediaRecorder = new MediaRecorder(currentStream, { mimeType, videoBitsPerSecond });
   } catch (e) {
     console.error(e);
     setStatus("No se pudo iniciar la grabación: " + e.message);
@@ -502,6 +564,7 @@ window.addEventListener("online", flushQueue);
 // ---------- arranque ----------
 async function boot() {
   initAuth();
+  updateQualityLabel();
   startCamera();
   updateFolderLabel();
   await refreshCount();
