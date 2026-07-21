@@ -46,6 +46,22 @@ header h1 span{color:var(--text);}
 .led.ok i{background:var(--green);box-shadow:0 0 6px var(--green);}
 .led.warn i{background:var(--amber);box-shadow:0 0 6px var(--amber);}
 
+.folder-bar{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:8px 16px;border-bottom:1px solid var(--line);background:var(--panel);
+}
+.folder-bar .folder-label{
+  font-family:var(--mono);font-size:11px;color:var(--muted);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.folder-bar .folder-label b{color:var(--text);font-weight:600;}
+.folder-btn{
+  font-family:var(--sans);font-size:11px;font-weight:600;color:var(--amber);
+  background:none;border:1px solid var(--amber-dim);padding:5px 10px;border-radius:7px;
+  cursor:pointer;letter-spacing:.03em;flex:none;
+}
+.folder-btn:active{background:var(--amber-dim);}
+
 main{flex:1;display:flex;flex-direction:column;position:relative;background:#000;}
 
 .viewfinder{position:relative;flex:1;overflow:hidden;background:#000;}
@@ -66,7 +82,30 @@ canvas{display:none;}
   position:absolute;inset:0;background:#000;display:none;flex-direction:column;
 }
 .preview-overlay.show{display:flex;}
-.preview-overlay img{flex:1;width:100%;object-fit:contain;background:#000;}
+.preview-overlay img,.preview-overlay video{flex:1;width:100%;object-fit:contain;background:#000;}
+
+.mode-switch{
+  position:absolute;bottom:12px;left:50%;transform:translateX(-50%);
+  display:flex;background:rgba(0,0,0,.55);border-radius:20px;padding:3px;gap:2px;z-index:5;
+}
+.mode-switch button{
+  border:none;background:none;color:var(--muted);font-family:var(--sans);
+  font-size:11px;font-weight:700;letter-spacing:.06em;padding:7px 16px;border-radius:16px;cursor:pointer;
+}
+.mode-switch button.active{background:var(--amber);color:#1a1207;}
+
+.rec-badge{
+  position:absolute;top:10px;left:50%;transform:translateX(-50%);
+  display:none;align-items:center;gap:6px;background:rgba(0,0,0,.55);
+  padding:5px 12px;border-radius:20px;font-family:var(--mono);font-size:11px;color:var(--text);z-index:5;
+}
+.rec-badge.show{display:flex;}
+.rec-badge .dot{width:8px;height:8px;border-radius:50%;background:var(--red);animation:pulse 1s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+
+.shutter.mode-video::after{background:radial-gradient(circle at 35% 30%, #ef7a7a, var(--red));box-shadow:0 0 14px rgba(225,91,91,.5);}
+.shutter.recording{border-color:var(--red);}
+.shutter.recording::after{border-radius:8px;inset:22px;}
 
 .hint{
   position:absolute;top:10px;left:50%;transform:translateX(-50%);
@@ -149,10 +188,19 @@ canvas{display:none;}
 }
 .gear-card h2{font-size:15px;margin:0 0 10px;color:var(--text);}
 .gear-card p{font-size:13px;color:var(--muted);line-height:1.5;margin:0 0 18px;}
+.gear-card input{
+  width:100%;padding:12px;border-radius:9px;border:1px solid var(--line);
+  background:var(--panel-raised);color:var(--text);font-family:var(--sans);font-size:14px;
+  margin-bottom:14px;
+}
+.gear-card input:focus{outline:none;border-color:var(--amber);}
+.gear-card .row{display:flex;gap:10px;}
+.gear-card .row button{flex:1;}
 .gear-card button{
   width:100%;padding:13px;border-radius:9px;border:none;background:var(--amber);
   color:#1a1207;font-weight:700;font-size:14px;cursor:pointer;
 }
+.gear-card button.secondary{background:var(--panel-raised);color:var(--text);border:1px solid var(--line);}
 
 @media (min-width:640px){
   main{max-width:480px;margin:0 auto;width:100%;border-left:1px solid var(--line);border-right:1px solid var(--line);}
@@ -171,15 +219,26 @@ canvas{display:none;}
   </div>
 </header>
 
+<div class="folder-bar">
+  <span class="folder-label">📁 <b id="folderLabel">CameraUploads</b></span>
+  <button class="folder-btn" id="folderBtnOpen">Cambiar carpeta</button>
+</div>
+
 <main>
   <div class="viewfinder" id="viewfinder">
     <video id="video" autoplay playsinline muted></video>
     <div class="frame-mark"></div>
     <div class="hint" id="hint">Iniciando cámara…</div>
+    <div class="rec-badge" id="recBadge"><span class="dot"></span><span id="recTime">00:00</span></div>
+    <div class="mode-switch">
+      <button id="modePhotoBtn" class="active">FOTO</button>
+      <button id="modeVideoBtn">VIDEO</button>
+    </div>
   </div>
 
   <div class="preview-overlay" id="previewOverlay">
-    <img id="previewImg" alt="Foto capturada">
+    <img id="previewImg" alt="Foto capturada" style="display:none;">
+    <video id="previewVideo" controls playsinline style="display:none;"></video>
   </div>
 
   <canvas id="canvas"></canvas>
@@ -190,6 +249,19 @@ canvas{display:none;}
       <p>Inicia sesión con tu cuenta de Microsoft para poder subir las fotos a tu carpeta de OneDrive.</p>
       <p id="authError" style="display:none;color:var(--red);font-family:var(--mono);font-size:11px;margin:-8px 0 16px;"></p>
       <button id="loginBtn">Iniciar sesión</button>
+    </div>
+  </div>
+
+  <div class="gear-panel" id="folderPanel">
+    <div class="gear-card">
+      <h2>Carpeta de destino</h2>
+      <p>Escribe el nombre de la carpeta en OneDrive donde se subirán las fotos y videos. Si no existe, se crea; si ya existe, simplemente se usa.</p>
+      <input type="text" id="folderInput" placeholder="Ej. CameraUploads" maxlength="100">
+      <p id="folderError" style="display:none;color:var(--red);font-family:var(--mono);font-size:11px;margin:-8px 0 14px;"></p>
+      <div class="row">
+        <button class="secondary" id="folderCancelBtn">Cancelar</button>
+        <button id="folderConfirmBtn">Usar / Crear</button>
+      </div>
     </div>
   </div>
 </main>

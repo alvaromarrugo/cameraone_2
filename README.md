@@ -81,6 +81,26 @@ Actualiza el Redirect URI en Azure con la URL que te asignen.
 Las fotos aparecerán en OneDrive dentro de la carpeta configurada
 (`CameraUploads` por defecto), que se crea sola en la primera subida.
 
+## Novedades: carpeta configurable y video
+
+- **Cambiar carpeta**: toca el botón "Cambiar carpeta" arriba de la
+  cámara. Escribe un nombre y toca "Usar / Crear": si la carpeta no
+  existe en tu OneDrive, se crea; si ya existe, simplemente se usa desde
+  ese momento para todas las subidas siguientes. Debe ser un nombre
+  simple (sin `/`), es decir, una carpeta directamente dentro de "Mis
+  archivos", no una ruta con subcarpetas.
+- **Video**: toca el botón "VIDEO" arriba del obturador para cambiar de
+  modo. En modo video, el botón central inicia la grabación (con audio)
+  y, al tocarlo de nuevo, la detiene. Verás un cronómetro mientras
+  grabas. Al terminar, aparece la vista previa reproducible con las
+  mismas opciones de Descartar / Subir a OneDrive.
+- Los videos se guardan como `.webm` (o `.mp4` si tu navegador lo
+  soporta así) — es el formato que graba el propio navegador, no
+  requiere conversión.
+- La cola de pendientes ahora usa una base de datos local (IndexedDB)
+  en vez de un simple guardado de texto, para poder guardar videos sin
+  problemas de espacio mientras esperan a subirse.
+
 ## Notas técnicas
 
 - El indicador **AUTH** (arriba) se pone verde cuando hay sesión activa;
