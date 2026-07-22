@@ -81,6 +81,29 @@ Actualiza el Redirect URI en Azure con la URL que te asignen.
 Las fotos aparecerán en OneDrive dentro de la carpeta configurada
 (`CameraUploads` por defecto), que se crea sola en la primera subida.
 
+## Novedades: video en formato MP4
+
+Los celulares Android graban video de forma nativa en formato **WebM**, no
+en MP4 — es una limitación del navegador, no de esta app. Para entregarte
+un `.mp4` real, la app ahora convierte el video automáticamente después
+de grabar, usando **ffmpeg.wasm** (FFmpeg corriendo dentro del propio
+navegador, sin ningún servidor de por medio).
+
+- Después de detener la grabación, verás una pantalla "Convirtiendo video
+  a MP4…" con el porcentaje de avance. El tiempo depende de la duración
+  del video y de la calidad elegida (a más resolución, más tarda).
+- **La primera vez** que grabes un video, la app necesita descargar el
+  conversor (~31 MB, una sola vez) — necesitarás buena conexión para ese
+  momento puntual. Después queda guardado en el celular y no se vuelve a
+  descargar.
+- El video final mantiene la resolución que hayas elegido en "Cambiar
+  calidad", y la nitidez del MP4 se ajusta automáticamente según esa
+  misma calidad (más alta resolución = mayor nitidez, pero conversión
+  más lenta y archivo más pesado).
+- Si por algún motivo la conversión falla (por ejemplo, un celular muy
+  limitado en memoria con 4K), la app no descarta tu grabación: sube el
+  video original (WebM) en su lugar, y te avisa en la barra de estado.
+
 ## Novedades: carpeta configurable y video
 
 - **Cambiar carpeta**: toca el botón "Cambiar carpeta" arriba de la

@@ -36,24 +36,32 @@ const els = {
   recTime: document.getElementById("recTime"),
   modePhotoBtn: document.getElementById("modePhotoBtn"),
   modeVideoBtn: document.getElementById("modeVideoBtn"),
-  folderLabel: document.getElementById("folderLabel"),
-  folderBtnOpen: document.getElementById("folderBtnOpen"),
   folderPanel: document.getElementById("folderPanel"),
   folderInput: document.getElementById("folderInput"),
   folderError: document.getElementById("folderError"),
   folderCancelBtn: document.getElementById("folderCancelBtn"),
   folderConfirmBtn: document.getElementById("folderConfirmBtn"),
-  qualityLabel: document.getElementById("qualityLabel"),
-  qualityBtnOpen: document.getElementById("qualityBtnOpen"),
   qualityPanel: document.getElementById("qualityPanel"),
   qualityOptionList: document.getElementById("qualityOptionList"),
   qualityCancelBtn: document.getElementById("qualityCancelBtn"),
-  cameraLabel: document.getElementById("cameraLabel"),
-  cameraBtnOpen: document.getElementById("cameraBtnOpen"),
   cameraPanel: document.getElementById("cameraPanel"),
   cameraOptionList: document.getElementById("cameraOptionList"),
   cameraError: document.getElementById("cameraError"),
   cameraCancelBtn: document.getElementById("cameraCancelBtn"),
+  closeAppBtn: document.getElementById("closeAppBtn"),
+  settingsSummary: document.getElementById("settingsSummary"),
+  settingsBtnOpen: document.getElementById("settingsBtnOpen"),
+  settingsPanel: document.getElementById("settingsPanel"),
+  settingsFolderVal: document.getElementById("settingsFolderVal"),
+  settingsQualityVal: document.getElementById("settingsQualityVal"),
+  settingsCameraVal: document.getElementById("settingsCameraVal"),
+  settingsOpenFolder: document.getElementById("settingsOpenFolder"),
+  settingsOpenQuality: document.getElementById("settingsOpenQuality"),
+  settingsOpenCamera: document.getElementById("settingsOpenCamera"),
+  settingsCloseBtn: document.getElementById("settingsCloseBtn"),
+  flashBtn: document.getElementById("flashBtn"),
+  convertingOverlay: document.getElementById("convertingOverlay"),
+  convertingProgress: document.getElementById("convertingProgress"),
 };
 
 let currentStream = null;
@@ -66,15 +74,16 @@ let mediaRecorder = null;
 let recordedChunks = [];
 let recTimer = null;
 let recSeconds = 0;
+let torchOn = false;
 
 const FOLDER_KEY = "camera-onedrive-folder-v1";
 const RES_KEY = "camera-onedrive-resolution-v1";
 const CAMERA_KEY = "camera-onedrive-device-v1";
 const RES_PRESETS = {
-  sd:  { label: "Estándar (480p)", width: 640,  height: 480  },
-  hd:  { label: "HD (720p)",       width: 1280, height: 720  },
-  fhd: { label: "Full HD (1080p)", width: 1920, height: 1080 },
-  uhd: { label: "4K (máxima disponible)", width: 3840, height: 2160 },
+  sd:  { label: "Estándar (480p)", width: 640,  height: 480,  crf: 24 },
+  hd:  { label: "HD (720p)",       width: 1280, height: 720,  crf: 23 },
+  fhd: { label: "Full HD (1080p)", width: 1920, height: 1080, crf: 21 },
+  uhd: { label: "4K (máxima disponible)", width: 3840, height: 2160, crf: 20 },
 };
 
 // ---------- utilidades de estado visual ----------
@@ -94,7 +103,8 @@ function getActiveFolder() {
   return localStorage.getItem(FOLDER_KEY) || cfg.folderPath;
 }
 function updateFolderLabel() {
-  els.folderLabel.textContent = getActiveFolder();
+  els.settingsFolderVal.textContent = getActiveFolder();
+  updateSettingsSummary();
 }
 function openFolderPanel() {
   els.folderInput.value = getActiveFolder();
@@ -130,7 +140,6 @@ async function createOrUseFolder(name) {
   throw new Error(`Graph API ${res.status}: ${text}`);
 }
 
-els.folderBtnOpen.addEventListener("click", openFolderPanel);
 els.folderCancelBtn.addEventListener("click", closeFolderPanel);
 els.folderConfirmBtn.addEventListener("click", async () => {
   const name = els.folderInput.value.trim();
@@ -167,9 +176,10 @@ function getActiveResKey() {
 }
 function updateQualityLabel(actualW, actualH) {
   const preset = RES_PRESETS[getActiveResKey()];
-  els.qualityLabel.textContent = actualW
+  els.settingsQualityVal.textContent = actualW
     ? `${preset.label} — real: ${actualW}×${actualH}`
     : preset.label;
+  updateSettingsSummary();
 }
 function renderQualityOptions() {
   const activeKey = getActiveResKey();
@@ -195,7 +205,6 @@ function openQualityPanel() {
 function closeQualityPanel() {
   els.qualityPanel.classList.remove("show");
 }
-els.qualityBtnOpen.addEventListener("click", openQualityPanel);
 els.qualityCancelBtn.addEventListener("click", closeQualityPanel);
 
 // ============================================================
@@ -205,10 +214,10 @@ function getActiveDeviceId() {
   return localStorage.getItem(CAMERA_KEY) || null; // null = automático (usa facingMode)
 }
 function updateCameraLabel(labelText) {
-  if (labelText) { els.cameraLabel.textContent = labelText; return; }
+  if (labelText) { els.settingsCameraVal.textContent = labelText; updateSettingsSummary(); return; }
   const id = getActiveDeviceId();
-  if (!id) { els.cameraLabel.textContent = "Automática"; return; }
-  els.cameraLabel.textContent = "Cámara seleccionada";
+  els.settingsCameraVal.textContent = id ? "Cámara seleccionada" : "Automática";
+  updateSettingsSummary();
 }
 
 async function listCameras() {
@@ -276,8 +285,37 @@ function openCameraPanel() {
 function closeCameraPanel() {
   els.cameraPanel.classList.remove("show");
 }
-els.cameraBtnOpen.addEventListener("click", openCameraPanel);
 els.cameraCancelBtn.addEventListener("click", closeCameraPanel);
+
+// ============================================================
+// Panel de Ajustes (resumen + acceso a carpeta/calidad/cámara)
+// ============================================================
+function updateSettingsSummary() {
+  const folder = els.settingsFolderVal ? els.settingsFolderVal.textContent : "";
+  const quality = RES_PRESETS[getActiveResKey()].label;
+  const camera = getActiveDeviceId() ? "Personalizada" : "Automática";
+  els.settingsSummary.textContent = `📁 ${folder} · 🎚️ ${quality} · 📷 ${camera}`;
+}
+function openSettingsPanel() {
+  els.settingsPanel.classList.add("show");
+}
+function closeSettingsPanel() {
+  els.settingsPanel.classList.remove("show");
+}
+els.settingsBtnOpen.addEventListener("click", openSettingsPanel);
+els.settingsCloseBtn.addEventListener("click", closeSettingsPanel);
+els.settingsOpenFolder.addEventListener("click", () => {
+  closeSettingsPanel();
+  openFolderPanel();
+});
+els.settingsOpenQuality.addEventListener("click", () => {
+  closeSettingsPanel();
+  openQualityPanel();
+});
+els.settingsOpenCamera.addEventListener("click", () => {
+  closeSettingsPanel();
+  openCameraPanel();
+});
 
 // ============================================================
 // Cola local en IndexedDB (fotos y videos pendientes de subir)
@@ -461,6 +499,7 @@ async function startCamera() {
   const track = currentStream.getVideoTracks()[0];
   const settings = track ? track.getSettings() : {};
   updateQualityLabel(settings.width, settings.height);
+  setupTorch(track);
 }
 function stopCamera() {
   if (currentStream) {
@@ -491,6 +530,73 @@ function capturePhoto() {
     els.previewVideo.style.display = "none";
     showPreview(true);
   }, "image/jpeg", 0.92);
+}
+
+// ============================================================
+// Conversión de video a MP4 (ffmpeg.wasm, autohospedado, sin CDN)
+// ============================================================
+let ffmpegInstance = null;
+let ffmpegLoading = null;
+
+function showConverting(show, text) {
+  els.convertingOverlay.classList.toggle("show", show);
+  if (text) els.convertingProgress.textContent = text;
+}
+
+async function ensureFFmpeg() {
+  if (ffmpegInstance) return ffmpegInstance;
+  if (ffmpegLoading) return ffmpegLoading;
+  ffmpegLoading = (async () => {
+    showConverting(true, "Preparando conversor de video (solo la primera vez)…");
+    const ffmpeg = new FFmpegWASM.FFmpeg();
+    ffmpeg.on("progress", ({ progress }) => {
+      const pct = Math.min(100, Math.max(0, Math.round(progress * 100)));
+      els.convertingProgress.textContent = `Convirtiendo… ${pct}%`;
+    });
+    await ffmpeg.load({
+      coreURL: "ffmpeg-vendor/ffmpeg-core.js",
+      wasmURL: "ffmpeg-vendor/ffmpeg-core.wasm",
+    });
+    ffmpegInstance = ffmpeg;
+    return ffmpeg;
+  })();
+  try {
+    return await ffmpegLoading;
+  } finally {
+    ffmpegLoading = null;
+  }
+}
+
+async function convertWebmToMp4(webmBlob) {
+  showConverting(true, "Preparando…");
+  const preset = RES_PRESETS[getActiveResKey()];
+  const inputName = "input.webm";
+  const outputName = "output.mp4";
+  const ffmpeg = await ensureFFmpeg();
+
+  const inputData = new Uint8Array(await webmBlob.arrayBuffer());
+  await ffmpeg.writeFile(inputName, inputData);
+
+  showConverting(true, "Convirtiendo… 0%");
+  await ffmpeg.exec([
+    "-i", inputName,
+    "-c:v", "libx264",
+    "-preset", "veryfast",
+    "-crf", String(preset.crf),
+    "-pix_fmt", "yuv420p",
+    "-c:a", "aac",
+    "-b:a", "128k",
+    "-movflags", "+faststart",
+    outputName,
+  ]);
+
+  const outputData = await ffmpeg.readFile(outputName);
+  const mp4Blob = new Blob([outputData.buffer], { type: "video/mp4" });
+
+  await ffmpeg.deleteFile(inputName).catch(() => {});
+  await ffmpeg.deleteFile(outputName).catch(() => {});
+
+  return mp4Blob;
 }
 
 // ---- video ----
@@ -524,11 +630,20 @@ function startRecording() {
   mediaRecorder.ondataavailable = (e) => {
     if (e.data && e.data.size > 0) recordedChunks.push(e.data);
   };
-  mediaRecorder.onstop = () => {
-    const blob = new Blob(recordedChunks, { type: mimeType });
-    const ext = mimeType.includes("mp4") ? "mp4" : "webm";
-    capturedBlob = { blob, kind: "video", mimeType: mimeType.split(";")[0], ext };
-    els.previewVideo.src = URL.createObjectURL(blob);
+  mediaRecorder.onstop = async () => {
+    const webmBlob = new Blob(recordedChunks, { type: mimeType });
+    try {
+      const mp4Blob = await convertWebmToMp4(webmBlob);
+      capturedBlob = { blob: mp4Blob, kind: "video", mimeType: "video/mp4", ext: "mp4" };
+      els.previewVideo.src = URL.createObjectURL(mp4Blob);
+    } catch (e) {
+      console.error(e);
+      setStatus("No se pudo convertir a MP4, se conserva el video original (" + (mimeType.includes("mp4") ? "mp4" : "webm") + ")");
+      const ext = mimeType.includes("mp4") ? "mp4" : "webm";
+      capturedBlob = { blob: webmBlob, kind: "video", mimeType: mimeType.split(";")[0], ext };
+      els.previewVideo.src = URL.createObjectURL(webmBlob);
+    }
+    showConverting(false);
     els.previewVideo.style.display = "block";
     els.previewImg.style.display = "none";
     showPreview(true);
@@ -643,6 +758,44 @@ async function flushQueue() {
   await refreshCount();
   flushing = false;
 }
+
+// ============================================================
+// Flash / linterna (torch de la cámara trasera)
+// ============================================================
+function setupTorch(track) {
+  torchOn = false;
+  els.flashBtn.classList.remove("on");
+  const caps = track && track.getCapabilities ? track.getCapabilities() : {};
+  const supported = !!(caps && caps.torch);
+  els.flashBtn.style.display = supported ? "flex" : "none";
+}
+
+els.flashBtn.addEventListener("click", async () => {
+  if (!currentStream) return;
+  const track = currentStream.getVideoTracks()[0];
+  if (!track) return;
+  const next = !torchOn;
+  try {
+    await track.applyConstraints({ advanced: [{ torch: next }] });
+    torchOn = next;
+    els.flashBtn.classList.toggle("on", torchOn);
+  } catch (e) {
+    console.error(e);
+    setStatus("No se pudo controlar el flash en este celular/navegador");
+  }
+});
+
+// ============================================================
+// Cerrar la app
+// ============================================================
+els.closeAppBtn.addEventListener("click", () => {
+  try { window.close(); } catch (e) { /* ignorado */ }
+  // Android no permite que una PWA se cierre sola por seguridad;
+  // si sigue visible medio segundo después, avisamos cómo cerrarla a mano.
+  setTimeout(() => {
+    setStatus("Para cerrarla del todo, deslízala en 'Apps recientes' de tu celular.");
+  }, 400);
+});
 
 // ---------- eventos UI ----------
 els.shutterBtn.addEventListener("click", handleShutter);

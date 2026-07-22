@@ -1,4 +1,4 @@
-const CACHE = "cam-onedrive-v6";
+const CACHE = "cam-onedrive-v8";
 const SHELL = [
   "./",
   "./index.html",
@@ -46,8 +46,18 @@ self.addEventListener("fetch", (e) => {
         .catch(() => caches.match(e.request))
     );
   } else {
+    // Estáticos (msal, ffmpeg-vendor, íconos): caché primero; si no está
+    // en caché, se descarga de la red y se guarda para la próxima vez.
     e.respondWith(
-      caches.match(e.request).then((cached) => cached || fetch(e.request))
+      caches.match(e.request).then((cached) => {
+        if (cached) return cached;
+        return fetch(e.request).then((res) => {
+          if (res && res.ok) {
+            caches.open(CACHE).then((c) => c.put(e.request, res.clone()));
+          }
+          return res;
+        });
+      })
     );
   }
 });
