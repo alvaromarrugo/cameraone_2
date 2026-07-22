@@ -75,6 +75,7 @@ let recordedChunks = [];
 let recTimer = null;
 let recSeconds = 0;
 let torchOn = false;
+let torchSupported = false;
 
 const FOLDER_KEY = "camera-onedrive-folder-v1";
 const RES_KEY = "camera-onedrive-resolution-v1";
@@ -701,6 +702,8 @@ function showPreview(show) {
   els.previewOverlay.classList.toggle("show", show);
   els.previewActions.classList.toggle("show", show);
   els.captureControls.style.display = show ? "none" : "flex";
+  document.querySelector(".mode-switch").style.display = show ? "none" : "flex";
+  els.flashBtn.style.display = show ? "none" : (torchSupported ? "flex" : "none");
 }
 
 // ============================================================
@@ -766,8 +769,8 @@ function setupTorch(track) {
   torchOn = false;
   els.flashBtn.classList.remove("on");
   const caps = track && track.getCapabilities ? track.getCapabilities() : {};
-  const supported = !!(caps && caps.torch);
-  els.flashBtn.style.display = supported ? "flex" : "none";
+  torchSupported = !!(caps && caps.torch);
+  els.flashBtn.style.display = torchSupported ? "flex" : "none";
 }
 
 els.flashBtn.addEventListener("click", async () => {
