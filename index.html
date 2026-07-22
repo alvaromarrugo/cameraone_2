@@ -250,6 +250,11 @@ canvas{display:none;}
   <button class="folder-btn" id="qualityBtnOpen">Cambiar calidad</button>
 </div>
 
+<div class="quality-bar">
+  <span class="quality-label">📷 <b id="cameraLabel">Automática</b></span>
+  <button class="folder-btn" id="cameraBtnOpen">Elegir cámara</button>
+</div>
+
 <main>
   <div class="viewfinder" id="viewfinder">
     <video id="video" autoplay playsinline muted></video>
@@ -297,6 +302,16 @@ canvas{display:none;}
       <p>Elige la resolución para fotos y videos. Más alta = más nitidez, pero archivos más pesados. El celular usará la resolución real más cercana que su cámara soporte.</p>
       <div class="option-list" id="qualityOptionList"></div>
       <button class="secondary" id="qualityCancelBtn">Cerrar</button>
+    </div>
+  </div>
+
+  <div class="gear-panel" id="cameraPanel">
+    <div class="gear-card">
+      <h2>Elegir cámara</h2>
+      <p>Tu celular puede tener varias cámaras traseras (angular, principal, macro). Si una da mejor enfoque o nitidez que otra, selecciónala aquí directamente.</p>
+      <div class="option-list" id="cameraOptionList"></div>
+      <p id="cameraError" style="display:none;color:var(--red);font-family:var(--mono);font-size:11px;margin:-8px 0 14px;"></p>
+      <button class="secondary" id="cameraCancelBtn">Cerrar</button>
     </div>
   </div>
 </main>

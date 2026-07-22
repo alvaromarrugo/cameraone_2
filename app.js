@@ -48,6 +48,12 @@ const els = {
   qualityPanel: document.getElementById("qualityPanel"),
   qualityOptionList: document.getElementById("qualityOptionList"),
   qualityCancelBtn: document.getElementById("qualityCancelBtn"),
+  cameraLabel: document.getElementById("cameraLabel"),
+  cameraBtnOpen: document.getElementById("cameraBtnOpen"),
+  cameraPanel: document.getElementById("cameraPanel"),
+  cameraOptionList: document.getElementById("cameraOptionList"),
+  cameraError: document.getElementById("cameraError"),
+  cameraCancelBtn: document.getElementById("cameraCancelBtn"),
 };
 
 let currentStream = null;
@@ -63,6 +69,7 @@ let recSeconds = 0;
 
 const FOLDER_KEY = "camera-onedrive-folder-v1";
 const RES_KEY = "camera-onedrive-resolution-v1";
+const CAMERA_KEY = "camera-onedrive-device-v1";
 const RES_PRESETS = {
   sd:  { label: "Estándar (480p)", width: 640,  height: 480  },
   hd:  { label: "HD (720p)",       width: 1280, height: 720  },
@@ -190,6 +197,87 @@ function closeQualityPanel() {
 }
 els.qualityBtnOpen.addEventListener("click", openQualityPanel);
 els.qualityCancelBtn.addEventListener("click", closeQualityPanel);
+
+// ============================================================
+// Cámara física específica (para celulares con varios lentes traseros)
+// ============================================================
+function getActiveDeviceId() {
+  return localStorage.getItem(CAMERA_KEY) || null; // null = automático (usa facingMode)
+}
+function updateCameraLabel(labelText) {
+  if (labelText) { els.cameraLabel.textContent = labelText; return; }
+  const id = getActiveDeviceId();
+  if (!id) { els.cameraLabel.textContent = "Automática"; return; }
+  els.cameraLabel.textContent = "Cámara seleccionada";
+}
+
+async function listCameras() {
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  return devices.filter((d) => d.kind === "videoinput");
+}
+
+async function renderCameraOptions() {
+  els.cameraError.style.display = "none";
+  els.cameraOptionList.innerHTML = "<p style='color:var(--muted);font-family:var(--mono);font-size:11px;'>Buscando cámaras…</p>";
+  let cams = [];
+  try {
+    cams = await listCameras();
+  } catch (e) {
+    console.error(e);
+    els.cameraOptionList.innerHTML = "";
+    els.cameraError.textContent = "No se pudo obtener la lista de cámaras: " + e.message;
+    els.cameraError.style.display = "block";
+    return;
+  }
+  els.cameraOptionList.innerHTML = "";
+  const activeId = getActiveDeviceId();
+
+  // opción "Automático"
+  const autoBtn = document.createElement("button");
+  autoBtn.className = "option-btn" + (!activeId ? " active" : "");
+  autoBtn.innerHTML = `<span>Automática</span><span class="sub">trasera / frontal</span>`;
+  autoBtn.addEventListener("click", async () => {
+    localStorage.removeItem(CAMERA_KEY);
+    updateCameraLabel();
+    closeCameraPanel();
+    setStatus("Aplicando cámara automática…");
+    await startCamera();
+  });
+  els.cameraOptionList.appendChild(autoBtn);
+
+  if (!cams.length) {
+    const p = document.createElement("p");
+    p.style.cssText = "color:var(--muted);font-family:var(--mono);font-size:11px;";
+    p.textContent = "No se detectaron cámaras adicionales (o el navegador aún no dio permiso para verlas).";
+    els.cameraOptionList.appendChild(p);
+    return;
+  }
+
+  cams.forEach((cam, i) => {
+    const label = cam.label || `Cámara ${i + 1}`;
+    const btn = document.createElement("button");
+    btn.className = "option-btn" + (cam.deviceId === activeId ? " active" : "");
+    btn.innerHTML = `<span>${label}</span><span class="sub">tocar para usar</span>`;
+    btn.addEventListener("click", async () => {
+      localStorage.setItem(CAMERA_KEY, cam.deviceId);
+      updateCameraLabel(label);
+      closeCameraPanel();
+      setStatus("Aplicando cámara seleccionada…");
+      await startCamera();
+    });
+    els.cameraOptionList.appendChild(btn);
+  });
+}
+
+function openCameraPanel() {
+  els.cameraPanel.classList.add("show");
+  renderCameraOptions();
+}
+function closeCameraPanel() {
+  els.cameraPanel.classList.remove("show");
+}
+els.cameraBtnOpen.addEventListener("click", openCameraPanel);
+els.cameraCancelBtn.addEventListener("click", closeCameraPanel);
 
 // ============================================================
 // Cola local en IndexedDB (fotos y videos pendientes de subir)
@@ -331,28 +419,48 @@ async function startCamera() {
   els.hint.textContent = "Iniciando cámara…";
   els.hint.style.display = "block";
   const preset = RES_PRESETS[getActiveResKey()];
+  const deviceId = getActiveDeviceId();
+  const videoConstraints = deviceId
+    ? { deviceId: { exact: deviceId }, width: { ideal: preset.width }, height: { ideal: preset.height } }
+    : { facingMode: { ideal: facingMode }, width: { ideal: preset.width }, height: { ideal: preset.height } };
   try {
     currentStream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: { ideal: facingMode },
-        width: { ideal: preset.width },
-        height: { ideal: preset.height },
-      },
+      video: videoConstraints,
       audio: true, // para poder grabar audio en los videos
     });
-    els.video.srcObject = currentStream;
-    els.hint.style.display = "none";
-    els.shutterBtn.disabled = false;
-    setLed(els.ledCam, "ok");
-    const track = currentStream.getVideoTracks()[0];
-    const settings = track ? track.getSettings() : {};
-    updateQualityLabel(settings.width, settings.height);
   } catch (e) {
     console.error(e);
-    els.hint.textContent = "No se pudo acceder a la cámara/micrófono";
-    setLed(els.ledCam, "");
-    setStatus("Permiso de cámara denegado o no disponible");
+    if (deviceId) {
+      // la cámara guardada ya no existe o falló (celular distinto, lente removido, etc.)
+      console.warn("Fallback a cámara automática:", e.message);
+      localStorage.removeItem(CAMERA_KEY);
+      updateCameraLabel();
+      try {
+        currentStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: facingMode }, width: { ideal: preset.width }, height: { ideal: preset.height } },
+          audio: true,
+        });
+      } catch (e2) {
+        console.error(e2);
+        els.hint.textContent = "No se pudo acceder a la cámara/micrófono";
+        setLed(els.ledCam, "");
+        setStatus("Permiso de cámara denegado o no disponible");
+        return;
+      }
+    } else {
+      els.hint.textContent = "No se pudo acceder a la cámara/micrófono";
+      setLed(els.ledCam, "");
+      setStatus("Permiso de cámara denegado o no disponible");
+      return;
+    }
   }
+  els.video.srcObject = currentStream;
+  els.hint.style.display = "none";
+  els.shutterBtn.disabled = false;
+  setLed(els.ledCam, "ok");
+  const track = currentStream.getVideoTracks()[0];
+  const settings = track ? track.getSettings() : {};
+  updateQualityLabel(settings.width, settings.height);
 }
 function stopCamera() {
   if (currentStream) {
@@ -550,6 +658,8 @@ els.uploadBtn.addEventListener("click", async () => {
   await queueMedia(item);
 });
 els.switchCamBtn.addEventListener("click", () => {
+  localStorage.removeItem(CAMERA_KEY);
+  updateCameraLabel();
   facingMode = facingMode === "environment" ? "user" : "environment";
   startCamera();
 });
@@ -565,6 +675,7 @@ window.addEventListener("online", flushQueue);
 async function boot() {
   initAuth();
   updateQualityLabel();
+  updateCameraLabel();
   startCamera();
   updateFolderLabel();
   await refreshCount();
