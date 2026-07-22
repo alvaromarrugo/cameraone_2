@@ -704,6 +704,15 @@ function showPreview(show) {
   els.captureControls.style.display = show ? "none" : "flex";
   document.querySelector(".mode-switch").style.display = show ? "none" : "flex";
   els.flashBtn.style.display = show ? "none" : (torchSupported ? "flex" : "none");
+  if (show) {
+    // en celulares con poca altura visible (barra de direcciones, etc.)
+    // forzamos que los botones de Descartar/Subir queden a la vista.
+    requestAnimationFrame(() => {
+      els.previewActions.scrollIntoView({ block: "end", behavior: "instant" });
+    });
+  } else {
+    window.scrollTo(0, 0);
+  }
 }
 
 // ============================================================
