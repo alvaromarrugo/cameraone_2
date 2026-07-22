@@ -27,12 +27,17 @@
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:var(--sans);height:100%;overscroll-behavior:none;}
-body{display:flex;flex-direction:column;min-height:100vh;min-height:100dvh;}
+body{
+  display:flex;flex-direction:column;
+  height:100vh;height:100dvh;
+  overflow:hidden;
+}
 
 header{
   padding:14px 16px 10px;
   display:flex;align-items:center;justify-content:space-between;
   border-bottom:1px solid var(--line);
+  flex-shrink:0;
 }
 header h1{
   font-size:13px;letter-spacing:.14em;text-transform:uppercase;
@@ -46,15 +51,15 @@ header h1 span{color:var(--text);}
 .led.ok i{background:var(--green);box-shadow:0 0 6px var(--green);}
 .led.warn i{background:var(--amber);box-shadow:0 0 6px var(--amber);}
 
-.folder-bar{
+.settings-bar{
   display:flex;align-items:center;justify-content:space-between;gap:8px;
-  padding:8px 16px;border-bottom:1px solid var(--line);background:var(--panel);
+  padding:7px 16px;border-bottom:1px solid var(--line);background:var(--panel);
+  flex-shrink:0;
 }
-.folder-bar .folder-label{
-  font-family:var(--mono);font-size:11px;color:var(--muted);
+.settings-bar .settings-summary{
+  font-family:var(--mono);font-size:10.5px;color:var(--muted);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
-.folder-bar .folder-label b{color:var(--text);font-weight:600;}
 .folder-btn{
   font-family:var(--sans);font-size:11px;font-weight:600;color:var(--amber);
   background:none;border:1px solid var(--amber-dim);padding:5px 10px;border-radius:7px;
@@ -62,15 +67,22 @@ header h1 span{color:var(--text);}
 }
 .folder-btn:active{background:var(--amber-dim);}
 
-.quality-bar{
-  display:flex;align-items:center;justify-content:space-between;gap:8px;
-  padding:6px 16px 8px;border-bottom:1px solid var(--line);background:var(--panel);
+.settings-row{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:12px 0;border-bottom:1px solid var(--line);text-align:left;
 }
-.quality-bar .quality-label{
-  font-family:var(--mono);font-size:11px;color:var(--muted);
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+.settings-row:last-of-type{border-bottom:none;}
+.settings-row .settings-row-title{
+  display:block;font-family:var(--sans);font-size:13px;color:var(--text);font-weight:600;
 }
-.quality-bar .quality-label b{color:var(--text);font-weight:600;}
+.settings-row .settings-row-value{
+  display:block;font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:2px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;
+}
+.settings-row button{
+  width:auto;flex:none;padding:8px 14px;font-size:12px;
+  background:var(--panel-raised);color:var(--amber);border:1px solid var(--amber-dim);
+}
 
 .option-list{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;}
 .option-btn{
@@ -83,9 +95,9 @@ header h1 span{color:var(--text);}
 .option-btn.active{border-color:var(--amber);background:var(--amber-dim);}
 .option-btn.active span.sub{color:var(--amber);}
 
-main{flex:1;display:flex;flex-direction:column;position:relative;background:#000;}
+main{flex:1;display:flex;flex-direction:column;position:relative;background:#000;min-height:0;}
 
-.viewfinder{position:relative;flex:1;overflow:hidden;background:#000;}
+.viewfinder{position:relative;flex:1;overflow:hidden;background:#000;min-height:0;}
 video{width:100%;height:100%;object-fit:cover;display:block;}
 canvas{display:none;}
 
@@ -124,6 +136,34 @@ canvas{display:none;}
 .rec-badge .dot{width:8px;height:8px;border-radius:50%;background:var(--red);animation:pulse 1s infinite;}
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
 
+.converting-overlay{
+  position:absolute;inset:0;background:rgba(10,11,12,.9);z-index:15;
+  display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+  color:var(--text);text-align:center;padding:24px;
+}
+.converting-overlay.show{display:flex;}
+.spinner{
+  width:38px;height:38px;border-radius:50%;
+  border:3px solid var(--line);border-top-color:var(--amber);
+  animation:spin .8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+.converting-overlay .conv-title{font-family:var(--sans);font-weight:700;font-size:14px;}
+.converting-overlay .conv-sub{font-family:var(--mono);font-size:12px;color:var(--muted);}
+
+.flash-btn{
+  position:absolute;top:10px;right:12px;z-index:5;
+  width:34px;height:34px;border-radius:50%;border:1px solid rgba(233,233,231,.25);
+  background:rgba(0,0,0,.45);color:var(--text);font-size:15px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  opacity:.75;
+}
+.flash-btn.on{
+  background:var(--amber);color:#1a1207;border-color:var(--amber);opacity:1;
+  box-shadow:0 0 12px rgba(232,163,61,.55);
+}
+.flash-btn:active{transform:scale(.92);}
+
 .shutter.mode-video::after{background:radial-gradient(circle at 35% 30%, #ef7a7a, var(--red));box-shadow:0 0 14px rgba(225,91,91,.5);}
 .shutter.recording{border-color:var(--red);}
 .shutter.recording::after{border-radius:8px;inset:22px;}
@@ -138,6 +178,7 @@ canvas{display:none;}
 .controls{
   padding:18px 20px 22px;background:var(--panel);border-top:1px solid var(--line);
   display:flex;align-items:center;justify-content:center;gap:26px;
+  flex-shrink:0;
 }
 .btn-secondary{
   width:46px;height:46px;border-radius:10px;border:1px solid var(--line);
@@ -179,9 +220,17 @@ canvas{display:none;}
   padding:8px 16px;font-family:var(--mono);font-size:11px;color:var(--muted);
   background:var(--panel);border-top:1px solid var(--line);
   min-height:34px;display:flex;align-items:center;justify-content:space-between;gap:8px;
+  flex-shrink:0;
 }
 .status-bar .msg{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .status-bar .count{color:var(--text);}
+
+.close-btn{
+  width:30px;height:30px;border-radius:8px;border:1px solid var(--line);
+  background:var(--panel-raised);color:var(--muted);font-size:15px;line-height:1;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none;
+}
+.close-btn:active{background:var(--red-dim);color:var(--red);}
 
 .log-panel{
   max-height:0;overflow:hidden;background:#101214;border-top:1px solid var(--line);
@@ -237,22 +286,13 @@ canvas{display:none;}
     <div class="led" id="led-auth"><i></i>AUTH</div>
     <div class="led" id="led-cam"><i></i>CAM</div>
     <div class="led" id="led-sync"><i></i>SYNC</div>
+    <button class="close-btn" id="closeAppBtn" title="Cerrar la app">✕</button>
   </div>
 </header>
 
-<div class="folder-bar">
-  <span class="folder-label">📁 <b id="folderLabel">CameraUploads</b></span>
-  <button class="folder-btn" id="folderBtnOpen">Cambiar carpeta</button>
-</div>
-
-<div class="quality-bar">
-  <span class="quality-label">🎚️ <b id="qualityLabel">Full HD (1080p)</b></span>
-  <button class="folder-btn" id="qualityBtnOpen">Cambiar calidad</button>
-</div>
-
-<div class="quality-bar">
-  <span class="quality-label">📷 <b id="cameraLabel">Automática</b></span>
-  <button class="folder-btn" id="cameraBtnOpen">Elegir cámara</button>
+<div class="settings-bar">
+  <span class="settings-summary" id="settingsSummary">📁 CameraUploads · 🎚️ Full HD · 📷 Automática</span>
+  <button class="folder-btn" id="settingsBtnOpen">⚙ Ajustes</button>
 </div>
 
 <main>
@@ -261,6 +301,12 @@ canvas{display:none;}
     <div class="frame-mark"></div>
     <div class="hint" id="hint">Iniciando cámara…</div>
     <div class="rec-badge" id="recBadge"><span class="dot"></span><span id="recTime">00:00</span></div>
+    <button class="flash-btn" id="flashBtn" title="Flash / linterna" style="display:none;">⚡</button>
+    <div class="converting-overlay" id="convertingOverlay">
+      <div class="spinner"></div>
+      <span class="conv-title">Convirtiendo video a MP4…</span>
+      <span class="conv-sub" id="convertingProgress">Preparando…</span>
+    </div>
     <div class="mode-switch">
       <button id="modePhotoBtn" class="active">FOTO</button>
       <button id="modeVideoBtn">VIDEO</button>
@@ -273,6 +319,34 @@ canvas{display:none;}
   </div>
 
   <canvas id="canvas"></canvas>
+
+  <div class="gear-panel" id="settingsPanel">
+    <div class="gear-card">
+      <h2>Ajustes</h2>
+      <div class="settings-row">
+        <div>
+          <span class="settings-row-title">📁 Carpeta</span>
+          <span class="settings-row-value" id="settingsFolderVal">CameraUploads</span>
+        </div>
+        <button id="settingsOpenFolder">Cambiar</button>
+      </div>
+      <div class="settings-row">
+        <div>
+          <span class="settings-row-title">🎚️ Calidad</span>
+          <span class="settings-row-value" id="settingsQualityVal">Full HD</span>
+        </div>
+        <button id="settingsOpenQuality">Cambiar</button>
+      </div>
+      <div class="settings-row">
+        <div>
+          <span class="settings-row-title">📷 Cámara</span>
+          <span class="settings-row-value" id="settingsCameraVal">Automática</span>
+        </div>
+        <button id="settingsOpenCamera">Cambiar</button>
+      </div>
+      <button class="secondary" id="settingsCloseBtn" style="margin-top:6px;">Cerrar</button>
+    </div>
+  </div>
 
   <div class="gear-panel" id="authPanel">
     <div class="gear-card">
@@ -336,6 +410,7 @@ canvas{display:none;}
 
 <script src="config.js"></script>
 <script src="msal-browser.min.js"></script>
+<script src="ffmpeg-vendor/ffmpeg.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
