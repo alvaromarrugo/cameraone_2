@@ -62,6 +62,8 @@ const els = {
   flashBtn: document.getElementById("flashBtn"),
   convertingOverlay: document.getElementById("convertingOverlay"),
   convertingProgress: document.getElementById("convertingProgress"),
+  settingsBar: document.querySelector(".settings-bar"),
+  modeSwitchEl: document.querySelector(".mode-switch"),
 };
 
 let currentStream = null;
@@ -544,6 +546,8 @@ function showConverting(show, text) {
   if (text) els.convertingProgress.textContent = text;
 }
 
+let lastFFmpegLog = "";
+
 async function ensureFFmpeg() {
   if (ffmpegInstance) return ffmpegInstance;
   if (ffmpegLoading) return ffmpegLoading;
@@ -553,6 +557,10 @@ async function ensureFFmpeg() {
     ffmpeg.on("progress", ({ progress }) => {
       const pct = Math.min(100, Math.max(0, Math.round(progress * 100)));
       els.convertingProgress.textContent = `Convirtiendo… ${pct}%`;
+    });
+    ffmpeg.on("log", ({ message }) => {
+      lastFFmpegLog = message;
+      console.log("[ffmpeg]", message);
     });
     await ffmpeg.load({
       coreURL: "ffmpeg-vendor/ffmpeg-core.js",
@@ -639,7 +647,9 @@ function startRecording() {
       els.previewVideo.src = URL.createObjectURL(mp4Blob);
     } catch (e) {
       console.error(e);
-      setStatus("Error al convertir a MP4 (" + e.message + "). Se sube el video original.");
+      const reason = (e && e.message) ? e.message : String(e);
+      const extra = lastFFmpegLog ? ` — ${lastFFmpegLog}` : "";
+      setStatus("Error al convertir a MP4 (" + reason + extra + "). Se sube el video original.");
       const ext = mimeType.includes("mp4") ? "mp4" : "webm";
       capturedBlob = { blob: webmBlob, kind: "video", mimeType: mimeType.split(";")[0], ext };
       els.previewVideo.src = URL.createObjectURL(webmBlob);
@@ -702,14 +712,12 @@ function showPreview(show) {
   els.previewOverlay.classList.toggle("show", show);
   els.previewActions.classList.toggle("show", show);
   els.captureControls.style.display = show ? "none" : "flex";
-  document.querySelector(".mode-switch").style.display = show ? "none" : "flex";
+  els.settingsBar.style.display = show ? "none" : "flex";
+  if (els.modeSwitchEl) els.modeSwitchEl.style.display = show ? "none" : "flex";
   els.flashBtn.style.display = show ? "none" : (torchSupported ? "flex" : "none");
   if (show) {
-    // en celulares con poca altura visible (barra de direcciones, etc.)
-    // forzamos que los botones de Descartar/Subir queden a la vista.
-    // La foto se muestra casi instantáneo, así que le damos un pequeño
-    // margen para que el navegador termine de ajustar el layout antes
-    // de hacer scroll (con video hay tiempo de sobra por la conversión).
+    // respaldo por si en algún celular todavía no entra todo:
+    // liberar la barra de ajustes ya debería bastar por sí solo.
     setTimeout(() => {
       els.previewActions.scrollIntoView({ block: "end", behavior: "instant" });
     }, 120);
