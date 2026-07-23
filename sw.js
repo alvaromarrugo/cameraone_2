@@ -1,4 +1,4 @@
-const CACHE = "cam-onedrive-v10";
+const CACHE = "cam-onedrive-v11";
 const SHELL = [
   "./",
   "./index.html",

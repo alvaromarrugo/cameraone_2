@@ -639,7 +639,7 @@ function startRecording() {
       els.previewVideo.src = URL.createObjectURL(mp4Blob);
     } catch (e) {
       console.error(e);
-      setStatus("No se pudo convertir a MP4, se conserva el video original (" + (mimeType.includes("mp4") ? "mp4" : "webm") + ")");
+      setStatus("Error al convertir a MP4 (" + e.message + "). Se sube el video original.");
       const ext = mimeType.includes("mp4") ? "mp4" : "webm";
       capturedBlob = { blob: webmBlob, kind: "video", mimeType: mimeType.split(";")[0], ext };
       els.previewVideo.src = URL.createObjectURL(webmBlob);
@@ -707,9 +707,12 @@ function showPreview(show) {
   if (show) {
     // en celulares con poca altura visible (barra de direcciones, etc.)
     // forzamos que los botones de Descartar/Subir queden a la vista.
-    requestAnimationFrame(() => {
+    // La foto se muestra casi instantáneo, así que le damos un pequeño
+    // margen para que el navegador termine de ajustar el layout antes
+    // de hacer scroll (con video hay tiempo de sobra por la conversión).
+    setTimeout(() => {
       els.previewActions.scrollIntoView({ block: "end", behavior: "instant" });
-    });
+    }, 120);
   } else {
     window.scrollTo(0, 0);
   }
