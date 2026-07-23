@@ -114,10 +114,12 @@ canvas{display:none;}
 
 .preview-overlay{
   position:absolute;inset:0;background:#000;display:none;flex-direction:column;
-  z-index:10;
+  z-index:10;align-items:center;justify-content:center;
 }
 .preview-overlay.show{display:flex;}
-.preview-overlay img,.preview-overlay video{flex:1;width:100%;object-fit:contain;background:#000;}
+.preview-overlay img,.preview-overlay video{
+  width:100%;max-height:58vh;object-fit:contain;background:#000;
+}
 
 .mode-switch{
   position:absolute;bottom:12px;left:50%;transform:translateX(-50%);
