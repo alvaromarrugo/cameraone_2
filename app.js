@@ -59,6 +59,11 @@ const els = {
   settingsOpenQuality: document.getElementById("settingsOpenQuality"),
   settingsOpenCamera: document.getElementById("settingsOpenCamera"),
   settingsCloseBtn: document.getElementById("settingsCloseBtn"),
+  settingsFormatVal: document.getElementById("settingsFormatVal"),
+  settingsOpenFormat: document.getElementById("settingsOpenFormat"),
+  formatPanel: document.getElementById("formatPanel"),
+  formatOptionList: document.getElementById("formatOptionList"),
+  formatCancelBtn: document.getElementById("formatCancelBtn"),
   flashBtn: document.getElementById("flashBtn"),
   convertingOverlay: document.getElementById("convertingOverlay"),
   convertingProgress: document.getElementById("convertingProgress"),
@@ -82,6 +87,7 @@ let torchSupported = false;
 const FOLDER_KEY = "camera-onedrive-folder-v1";
 const RES_KEY = "camera-onedrive-resolution-v1";
 const CAMERA_KEY = "camera-onedrive-device-v1";
+const FORMAT_KEY = "camera-onedrive-video-format-v1"; // 'webm' (rápido) o 'mp4' (compatible, tarda)
 const RES_PRESETS = {
   sd:  { label: "Estándar (480p)", width: 640,  height: 480,  crf: 24 },
   hd:  { label: "HD (720p)",       width: 1280, height: 720,  crf: 23 },
@@ -176,6 +182,14 @@ els.folderConfirmBtn.addEventListener("click", async () => {
 function getActiveResKey() {
   const k = localStorage.getItem(RES_KEY);
   return RES_PRESETS[k] ? k : "fhd";
+}
+function getActiveFormat() {
+  const f = localStorage.getItem(FORMAT_KEY);
+  return f === "mp4" ? "mp4" : "webm"; // webm es el valor por defecto
+}
+function updateFormatLabel() {
+  els.settingsFormatVal.textContent = getActiveFormat() === "mp4" ? "MP4 (compatible, tarda)" : "WebM (rápido)";
+  updateSettingsSummary();
 }
 function updateQualityLabel(actualW, actualH) {
   const preset = RES_PRESETS[getActiveResKey()];
@@ -291,6 +305,37 @@ function closeCameraPanel() {
 els.cameraCancelBtn.addEventListener("click", closeCameraPanel);
 
 // ============================================================
+// Formato de video (WebM rápido vs MP4 compatible)
+// ============================================================
+function renderFormatOptions() {
+  const active = getActiveFormat();
+  els.formatOptionList.innerHTML = "";
+  const options = [
+    { key: "webm", label: "WebM", sub: "rápido, sin conversión" },
+    { key: "mp4", label: "MP4", sub: "compatible, tarda en convertir" },
+  ];
+  options.forEach((opt) => {
+    const btn = document.createElement("button");
+    btn.className = "option-btn" + (opt.key === active ? " active" : "");
+    btn.innerHTML = `<span>${opt.label}</span><span class="sub">${opt.sub}</span>`;
+    btn.addEventListener("click", () => {
+      localStorage.setItem(FORMAT_KEY, opt.key);
+      updateFormatLabel();
+      closeFormatPanel();
+    });
+    els.formatOptionList.appendChild(btn);
+  });
+}
+function openFormatPanel() {
+  renderFormatOptions();
+  els.formatPanel.classList.add("show");
+}
+function closeFormatPanel() {
+  els.formatPanel.classList.remove("show");
+}
+els.formatCancelBtn.addEventListener("click", closeFormatPanel);
+
+// ============================================================
 // Panel de Ajustes (resumen + acceso a carpeta/calidad/cámara)
 // ============================================================
 function updateSettingsSummary() {
@@ -318,6 +363,10 @@ els.settingsOpenQuality.addEventListener("click", () => {
 els.settingsOpenCamera.addEventListener("click", () => {
   closeSettingsPanel();
   openCameraPanel();
+});
+els.settingsOpenFormat.addEventListener("click", () => {
+  closeSettingsPanel();
+  openFormatPanel();
 });
 
 // ============================================================
@@ -641,6 +690,19 @@ function startRecording() {
   };
   mediaRecorder.onstop = async () => {
     const webmBlob = new Blob(recordedChunks, { type: mimeType });
+    const wantMp4 = getActiveFormat() === "mp4";
+
+    if (!wantMp4) {
+      // WebM: es el formato nativo que ya grabó el celular, se sube tal cual, sin esperas.
+      const ext = mimeType.includes("mp4") ? "mp4" : "webm";
+      capturedBlob = { blob: webmBlob, kind: "video", mimeType: mimeType.split(";")[0], ext };
+      els.previewVideo.src = URL.createObjectURL(webmBlob);
+      els.previewVideo.style.display = "block";
+      els.previewImg.style.display = "none";
+      showPreview(true);
+      return;
+    }
+
     try {
       const mp4Blob = await convertWebmToMp4(webmBlob);
       capturedBlob = { blob: mp4Blob, kind: "video", mimeType: "video/mp4", ext: "mp4" };
@@ -789,8 +851,12 @@ function setupTorch(track) {
   torchOn = false;
   els.flashBtn.classList.remove("on");
   const caps = track && track.getCapabilities ? track.getCapabilities() : {};
+  console.log("[flash] capabilities de la cámara actual:", caps);
   torchSupported = !!(caps && caps.torch);
   els.flashBtn.style.display = torchSupported ? "flex" : "none";
+  if (!torchSupported) {
+    setStatus("Este navegador/cámara no reporta flash disponible en este momento");
+  }
 }
 
 els.flashBtn.addEventListener("click", async () => {
@@ -852,6 +918,7 @@ async function boot() {
   initAuth();
   updateQualityLabel();
   updateCameraLabel();
+  updateFormatLabel();
   startCamera();
   updateFolderLabel();
   await refreshCount();

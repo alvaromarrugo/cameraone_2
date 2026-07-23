@@ -348,6 +348,13 @@ canvas{display:none;}
         </div>
         <button id="settingsOpenCamera">Cambiar</button>
       </div>
+      <div class="settings-row">
+        <div>
+          <span class="settings-row-title">🎞️ Formato de video</span>
+          <span class="settings-row-value" id="settingsFormatVal">WebM (rápido)</span>
+        </div>
+        <button id="settingsOpenFormat">Cambiar</button>
+      </div>
       <button class="secondary" id="settingsCloseBtn" style="margin-top:6px;">Cerrar</button>
     </div>
   </div>
@@ -390,6 +397,15 @@ canvas{display:none;}
       <div class="option-list" id="cameraOptionList"></div>
       <p id="cameraError" style="display:none;color:var(--red);font-family:var(--mono);font-size:11px;margin:-8px 0 14px;"></p>
       <button class="secondary" id="cameraCancelBtn">Cerrar</button>
+    </div>
+  </div>
+
+  <div class="gear-panel" id="formatPanel">
+    <div class="gear-card">
+      <h2>Formato de video</h2>
+      <p>WebM es el formato nativo del celular: se sube de inmediato, sin espera. MP4 es más compatible con otros programas, pero el celular necesita convertirlo primero, lo cual puede tardar.</p>
+      <div class="option-list" id="formatOptionList"></div>
+      <button class="secondary" id="formatCancelBtn">Cerrar</button>
     </div>
   </div>
 </main>
