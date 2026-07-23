@@ -563,8 +563,8 @@ async function ensureFFmpeg() {
       console.log("[ffmpeg]", message);
     });
     await ffmpeg.load({
-      coreURL: "ffmpeg-vendor/ffmpeg-core.js",
-      wasmURL: "ffmpeg-vendor/ffmpeg-core.wasm",
+      coreURL: new URL("ffmpeg-vendor/ffmpeg-core.js", document.baseURI).href,
+      wasmURL: new URL("ffmpeg-vendor/ffmpeg-core.wasm", document.baseURI).href,
     });
     ffmpegInstance = ffmpeg;
     return ffmpeg;
